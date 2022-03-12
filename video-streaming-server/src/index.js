@@ -3,7 +3,7 @@ const fs = require("fs");
 const dotenv = require("dotenv");
 
 const app = express();
-dotenv.config()
+dotenv.config();
 
 if (!process.env.PORT) {
   throw new Error("Please specify the port number for the HTTP server with the environment variable PORT");
@@ -16,7 +16,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/video", (req, res) => {
-  const path = "../videos/SampleVideo_1280x720_1mb.mp4";
+  const path = "./videos/SampleVideo_1280x720_1mb.mp4";
 
   fs.stat(path, (err, stats) => {
     if (err) {
