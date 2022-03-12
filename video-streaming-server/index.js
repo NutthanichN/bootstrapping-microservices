@@ -1,8 +1,15 @@
 const express = require("express");
 const fs = require("fs");
+const dotenv = require("dotenv");
 
 const app = express();
-const port = 3000;
+dotenv.config()
+
+if (!process.env.PORT) {
+  throw new Error("Please specify the port number for the HTTP server with the environment variable PORT");
+}
+
+const PORT = process.env.PORT;
 
 app.get("/", (req, res) => {
   res.send("Welcome to FlixTube");
@@ -28,6 +35,6 @@ app.get("/video", (req, res) => {
   });
 })
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}!`);
+app.listen(PORT, () => {
+  console.log(`Example app listening on port ${PORT}!`);
 });
