@@ -1,5 +1,12 @@
 version: '3'
 services:
+  db:
+    image: mongo:4.2.8
+    container_name: db
+    ports:
+      - "4002:27017"
+    restart: always
+
   azure-storage:
     image: azure-storage
     build:
@@ -26,4 +33,6 @@ services:
       - PORT=80
       - VIDEO_STORAGE_HOST=video-storage
       - VIDEO_STORAGE_PORT=80
+      - DBHOST=mongodb://db:27017
+      - DBNAME=video-streaming
     restart: "no"
