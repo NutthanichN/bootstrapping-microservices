@@ -2,8 +2,8 @@ const express = require("express");
 const http = require("http");
 const dotenv = require("dotenv");
 const mongodb = require("mongodb");
+const amqp = require('amqplib');
 
-const app = express();
 dotenv.config();
 
 if (!process.env.PORT) {
@@ -18,11 +18,16 @@ if (!process.env.DBNAME) {
   throw new Error("Please specify the name of the database using environment variable DBNAME");
 }
 
+if (!process.env.RABBIT) {
+  throw new Error("Please specify the name of the RabbitMQ host using environment variable RABBIT");
+}
+
 const PORT = process.env.PORT;
 const VIDEO_STORAGE_HOST = process.env.VIDEO_STORAGE_HOST;
 const VIDEO_STORAGE_PORT = parseInt(process.env.VIDEO_STORAGE_PORT);
 const DBHOST = process.env.DBHOST;
 const DBNAME = process.env.DBNAME;
+const RABBIT = process.env.RABBIT;
 
 console.log(`Forwarding video requests to ${VIDEO_STORAGE_HOST}:${VIDEO_STORAGE_PORT}.`);
 
@@ -57,7 +62,15 @@ function sendViewedMessage(videoPath) {
   req.end();
 }
 
-function setupHandlers(app, db) {
+function sendViewedMessageToRabbitMQ(messageChannel, videoPath) {
+  console.log(`Publishing message on "viewed" queue.`);
+
+  const msg = { videoPath: videoPath };
+  const jsonMsg = JSON.stringify(msg);
+  messageChannel.publish("", "viewed", Buffer.from(jsonMsg)); // Publish message to the "viewed" queue.
+}
+
+function setupHandlers(app, db, messageChannel) {
 
   const videosCollection = db.collection("videos");
 
@@ -91,7 +104,8 @@ function setupHandlers(app, db) {
             );
 
             req.pipe(forwardRequest);
-            sendViewedMessage(videoRecord.videoPath)  // send request to history service
+            // sendViewedMessage(videoRecord.videoPath)  // send request to history service via HTTP request
+            sendViewedMessageToRabbitMQ(messageChannel, videoRecord.videoPath);
         })
         .catch(err => {
             console.error("Database query failed.");
@@ -101,16 +115,28 @@ function setupHandlers(app, db) {
   });
 }
 
-function startHttpServer(db) {
+function startHttpServer(db, messageChannel) {
   return new Promise(resolve => {
       const app = express();
-      setupHandlers(app, db);
+      setupHandlers(app, db, messageChannel);
 
       app.listen(PORT, () => {
         console.log(`Microservice listening at port ${PORT}, please load the data file db-fixture/videos.json into your database before testing this microservice.`);
         resolve();
       });
   });
+}
+
+function connectRabbit() {
+
+  console.log(`Connecting to RabbitMQ server at ${RABBIT}.`);
+
+  return amqp.connect(RABBIT) // Connect to the RabbitMQ server.
+      .then(connection => {
+          console.log("Connected to RabbitMQ.");
+
+          return connection.createChannel(); // Create a RabbitMQ messaging channel.
+      });
 }
 
 function connectDb() {
@@ -121,9 +147,12 @@ function connectDb() {
 }
 
 function main() {
-  return connectDb(DBHOST)
-      .then(db => {
-          return startHttpServer(db);
+  return connectDb()                                          // Connect to the database...
+      .then(db => {                                           // then...
+          return connectRabbit()                              // connect to RabbitMQ...
+              .then(messageChannel => {                       // then...
+                  return startHttpServer(db, messageChannel); // start the HTTP server.
+              });
       });
 }
 

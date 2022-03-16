@@ -6,4 +6,5 @@ RUN npm install --only=production
 COPY ./src ./src
 COPY ./videos ./videos
 
-CMD npm start
+CMD npx wait-port rabbit:5672 && \
+    npm start
