@@ -1,7 +1,21 @@
 version: '3'
 services:
+  azure-storage:
+    image: azure-storage
+    build:
+      context: ./azure-storage-service
+      dockerfile: Dockerfile
+    container_name: video-storage
+    ports:
+     - "4001:80"
+    environment:
+      - PORT=80
+      - STORAGE_ACCOUNT_NAME=nutthanich
+      - STORAGE_ACCESS_KEY=<access-key>
+    restart: "no"
+
   video-streaming:
-    image: nutthanich.azurecr.io/video-streaming
+    image: video-streaming
     build:
       context: ./video-streaming-server
       dockerfile: Dockerfile
@@ -10,4 +24,6 @@ services:
      - "4000:80"
     environment:
       - PORT=80
+      - VIDEO_STORAGE_HOST=video-storage
+      - VIDEO_STORAGE_PORT=80
     restart: "no"
