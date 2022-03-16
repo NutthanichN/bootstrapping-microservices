@@ -25,8 +25,12 @@ services:
     image: video-streaming
     build:
       context: ./video-streaming-server
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-dev
     container_name: video-streaming
+    volumes:
+      - /tmp/video-streaming-server/npm-cache:/root/.npm:z
+      - ./video-streaming-server/src:/usr/src/app/src:z
+      - ./video-streaming-server/videos:/usr/src/app/videos:z
     ports:
      - "4000:80"
     environment:
