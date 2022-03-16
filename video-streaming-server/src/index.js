@@ -1,5 +1,5 @@
 const express = require("express");
-const fs = require("fs");
+const http = require("http");
 const dotenv = require("dotenv");
 
 const app = express();
@@ -10,31 +10,32 @@ if (!process.env.PORT) {
 }
 
 const PORT = process.env.PORT;
+const VIDEO_STORAGE_HOST = process.env.VIDEO_STORAGE_HOST;
+const VIDEO_STORAGE_PORT = parseInt(process.env.VIDEO_STORAGE_PORT);
 
 app.get("/", (req, res) => {
   res.send("Welcome to FlixTube");
 });
 
 app.get("/video", (req, res) => {
-  const path = "./videos/SampleVideo_1280x720_1mb.mp4";
-
-  fs.stat(path, (err, stats) => {
-    if (err) {
-      console.error("An error occurred");
-      res.sendStatus(500);
-      return;
+  const forwardRequest = http.request(
+    {
+      host: VIDEO_STORAGE_HOST,
+      port: VIDEO_STORAGE_PORT,
+      path: '/video?path=SampleVideo_1280x720_1mb.mp4',
+      method: 'GET',
+      headers: req.headers,
+    },
+    forwardResponse => {
+      res.writeHeader(forwardResponse.statusCode, forwardResponse.headers);
+      forwardResponse.pipe(res);
     }
+  );
 
-    res.writeHead(200, {
-      "Content-Length": stats.size,
-      "Content-Type": "video/mp4",
-    });
+  req.pipe(forwardRequest);
 
-    // stream video to the web browser
-    fs.createReadStream(path).pipe(res);
-  });
 })
 
 app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}!`);
+  console.log(`Microservice online, listening on port ${PORT}!`);
 });
