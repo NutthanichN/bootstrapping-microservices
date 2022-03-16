@@ -35,4 +35,21 @@ services:
       - VIDEO_STORAGE_PORT=80
       - DBHOST=mongodb://db:27017
       - DBNAME=video-streaming
+      - NODE_ENV=development
+    restart: "no"
+
+  history:
+    image: history
+    build:
+      context: ./history-service
+      dockerfile: Dockerfile-dev
+    container_name: history
+    volumes:
+      - /tmp/history-service/npm-cache:/root/.npm:z
+      - ./history-service/src:/usr/src/app/src:z
+    ports:
+      - "4003:80"
+    environment:
+      - PORT=80
+      - NODE_ENV=development
     restart: "no"
