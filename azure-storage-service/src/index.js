@@ -1,7 +1,9 @@
 const express = require("express");
 const azure = require('azure-storage');
+const dotenv = require("dotenv");
 
 const app = express();
+dotenv.config();
 
 //
 // Throws an error if the any required environment variables are missing.
@@ -35,7 +37,7 @@ console.log(`Serving videos from Azure storage account ${STORAGE_ACCOUNT_NAME}.`
 function createBlobService() {
     const blobService = azure.createBlobService(STORAGE_ACCOUNT_NAME, STORAGE_ACCESS_KEY);
     // Uncomment next line for extra debug logging.
-    //blobService.logger.level = azure.Logger.LogLevels.DEBUG; 
+    //blobService.logger.level = azure.Logger.LogLevels.DEBUG;
     return blobService;
 }
 
@@ -46,7 +48,7 @@ app.get("/video", (req, res) => {
 
     const videoPath = req.query.path;
     console.log(`Streaming video from path ${videoPath}.`);
-    
+
     const blobService = createBlobService();
 
     const containerName = "videos";
