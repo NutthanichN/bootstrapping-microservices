@@ -1,32 +1,69 @@
 const express = require("express");
 const dotenv = require("dotenv");
+const mongodb = require("mongodb");
+const bodyParser = require('body-parser');
 
 dotenv.config();
 
-function setupHandlers(app) {
-  // TODO
+if (!process.env.DBHOST) {
+  throw new Error("Please specify the databse host using environment variable DBHOST.");
 }
 
-function startHttpServer() {
-  return new Promise(resolve => {
-    const app = express();
-    setupHandlers(app);
+if (!process.env.DBNAME) {
+  throw new Error("Please specify the name of the database using environment variable DBNAME");
+}
 
-    const port = process.env.PORT && parseInt(process.env.PORT) || 3000;
-    app.listen(port, () => {
-      resolve();
+const DBHOST = process.env.DBHOST;
+const DBNAME = process.env.DBNAME;
+
+function connectDb() {
+  return mongodb.MongoClient.connect(DBHOST)
+      .then(client => {
+          return client.db(DBNAME);
+      });
+}
+
+function setupHandlers(app, db) {
+  const videosCollection = db.collection("videos");
+
+    app.post("/viewed", (req, res) => {
+        const videoPath = req.body.videoPath;
+        videosCollection.insertOne({ videoPath: videoPath })
+            .then(() => {
+                console.log(`Added video ${videoPath} to history.`);
+                res.sendStatus(200);
+            })
+            .catch(err => {
+                console.error(`Error adding video ${videoPath} to history.`);
+                console.error(err && err.stack || err);
+                res.sendStatus(500);
+            });
     });
+}
+
+function startHttpServer(db) {
+  return new Promise(resolve => {
+      const app = express();
+      app.use(bodyParser.json());
+      setupHandlers(app, db);
+
+      const port = process.env.PORT && parseInt(process.env.PORT) || 3000;
+      app.listen(port, () => {
+          resolve();
+      });
   });
 }
 
 function main() {
-  console.log("Hello computer! live reload is awesome!");
-  return startHttpServer();
+  return connectDb(DBHOST)
+      .then(db => {
+          return startHttpServer(db);
+      });
 }
 
 main()
   .then(() => console.log("Microservice online."))
   .catch(err => {
-    console.error("Microservice failed to start.");
-    console.error(err && err.stack || err);
+      console.error("Microservice failed to start.");
+      console.error(err && err.stack || err);
   });
