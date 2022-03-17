@@ -63,9 +63,9 @@ function setupHandlers(app, db, messageChannel) {
     function consumeViewedMessage(msg) {
       console.log("Received a 'viewed' message");
 
-      const parsedMsg = JSON.parse(msg.content.toString());
+      const parsedMsg = JSON.parse(msg.content.toString()); // Parse the JSON message.
 
-      return videosCollection.insertOne({ videoPath: parsedMsg.videoPath })
+      return videosCollection.insertOne({ videoPath: parsedMsg.videoPath }) // Record the "view" in the database.
           .then(() => {
               console.log("Acknowledging message was handled.");
 
@@ -73,12 +73,27 @@ function setupHandlers(app, db, messageChannel) {
           });
   };
 
-  return messageChannel.assertQueue("viewed", {}) // Assert that we have a "viewed" queue.
-      .then(() => {
-          console.log("Asserted that the 'viewed' queue exists.");
+  // single-recipient messages set up
+  // return messageChannel.assertQueue("viewed", {}) // Assert that we have a "viewed" queue.
+  //     .then(() => {
+  //         console.log("Asserted that the 'viewed' queue exists.");
 
-          return messageChannel.consume("viewed", consumeViewedMessage); // Start receiving messages from the "viewed" queue.
-      });
+  //         return messageChannel.consume("viewed", consumeViewedMessage); // Start receiving messages from the "viewed" queue.
+  //     });
+
+  // multiple-recipient messages set up
+  return messageChannel.assertExchange("viewed", "fanout") // Assert that we have a "viewed" exchange.
+        .then(() => {
+            return messageChannel.assertQueue("", { exclusive: true }); // Create an anonyous queue.
+        })
+        .then(response => {
+            const queueName = response.queue;
+            console.log(`Created queue ${queueName}, binding it to "viewed" exchange.`);
+            return messageChannel.bindQueue(queueName, "viewed", "") // Bind the queue to the exchange.
+                .then(() => {
+                    return messageChannel.consume(queueName, consumeViewedMessage); // Start receiving messages from the anonymous queue.
+                });
+        });
 }
 
 function startHttpServer(db, messageChannel) {
