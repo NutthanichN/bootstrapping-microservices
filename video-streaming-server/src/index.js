@@ -63,11 +63,12 @@ function sendViewedMessage(videoPath) {
 }
 
 function sendViewedMessageToRabbitMQ(messageChannel, videoPath) {
-  console.log(`Publishing message on "viewed" queue.`);
+  // console.log(`Publishing message on "viewed" queue.`);
+  console.log(`Publishing message on "viewed" exchange.`);
 
   const msg = { videoPath: videoPath };
   const jsonMsg = JSON.stringify(msg);
-  messageChannel.publish("", "viewed", Buffer.from(jsonMsg)); // Publish message to the "viewed" queue.
+  messageChannel.publish("viewed", "", Buffer.from(jsonMsg)); // Publish message to the "viewed" exchange.
 }
 
 function setupHandlers(app, db, messageChannel) {
@@ -131,12 +132,27 @@ function connectRabbit() {
 
   console.log(`Connecting to RabbitMQ server at ${RABBIT}.`);
 
-  return amqp.connect(RABBIT) // Connect to the RabbitMQ server.
-      .then(connection => {
-          console.log("Connected to RabbitMQ.");
+  // single-recipient messages set up
+  // return amqp.connect(RABBIT) // Connect to the RabbitMQ server.
+  //     .then(connection => {
+  //         console.log("Connected to RabbitMQ.");
 
-          return connection.createChannel(); // Create a RabbitMQ messaging channel.
-      });
+  //         return connection.createChannel(); // Create a RabbitMQ messaging channel.
+  //     });
+
+  // multiple-recipient messages set up
+  return amqp.connect(RABBIT) // Connect to the RabbitMQ server.
+    .then(connection => {
+        console.log("Connected to RabbitMQ.");
+
+        return connection.createChannel() // Create a RabbitMQ messaging channel.
+            .then(messageChannel => {
+                return messageChannel.assertExchange("viewed", "fanout") // Assert that we have a "viewed" exchange.
+                    .then(() => {
+                        return messageChannel;
+                    });
+            });
+    });
 }
 
 function connectDb() {
